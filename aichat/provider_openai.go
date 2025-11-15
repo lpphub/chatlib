@@ -15,8 +15,10 @@ func NewOpenAIProvider(apiKey, baseURL string) *OpenAIProvider {
 	}
 	return &OpenAIProvider{
 		BaseProvider{
-			APIKey:  apiKey,
-			BaseURL: baseURL,
+			options: ProviderOptions{
+				BaseURL: baseURL,
+				APIKey:  apiKey,
+			},
 			Client: &http.Client{
 				Timeout: 5 * time.Minute,
 			},
@@ -25,5 +27,5 @@ func NewOpenAIProvider(apiKey, baseURL string) *OpenAIProvider {
 }
 
 func (p *OpenAIProvider) IsAvailable() bool {
-	return p.APIKey != ""
+	return p.options.APIKey != ""
 }

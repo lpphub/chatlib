@@ -26,11 +26,11 @@ func TestBaseProvider_StreamChat(t *testing.T) {
 			Messages: []ChatMessage{
 				{
 					Role:    "system",
-					Content: "你是一个编辑助手",
+					Content: "你是一个有用的助手",
 				},
 				{
 					Role:    "user",
-					Content: "帮我查一下郑州明天的天气怎么样",
+					Content: "明天是几号，帮我查一下郑州明天的天气怎么样",
 				},
 			},
 			Stream: true,
