@@ -11,28 +11,43 @@ type ChunkConverter struct {
 	options *StreamOptions
 }
 
-func (c *ChunkConverter) ChunkedStream(ctx context.Context, w http.ResponseWriter, contentType string, dataChan <-chan []byte) error {
+func (c *ChunkConverter) Convert(ctx context.Context, w http.ResponseWriter, dataChan <-chan StreamData) error {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
 		return fmt.Errorf("streaming not supported")
 	}
 
-	// 2. 设置必要的 HTTP 头
-	w.Header().Set("Content-Type", contentType)
+	// 设置必要的 HTTP 头
+	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("Client disconnected.")
 			return ctx.Err()
 
-		case chunk, open := <-dataChan:
+		case data, open := <-dataChan:
 			if !open {
-				log.Println("Chunked stream finished.")
 				return nil
+			}
+
+			if data.Err != nil {
+				if c.options.OnError != nil {
+					c.options.OnError(data.Err)
+				}
+				return data.Err
+			}
+
+			// 处理数据
+			chunk := data.Payload
+			if c.options.Processor != nil {
+				processed, err := c.options.Processor(chunk)
+				if err != nil {
+					return err
+				}
+				chunk = processed
 			}
 
 			_, err := w.Write(chunk)

@@ -3,7 +3,7 @@ package streaming
 import (
 	"context"
 	"fmt"
-	"io"
+	"log"
 	"net/http"
 )
 
@@ -33,7 +33,7 @@ func (s *SSEConverter) Convert(ctx context.Context, w http.ResponseWriter, dataC
 			if !open {
 				return nil
 			}
-			
+
 			if data.Err != nil {
 				if s.options.OnError != nil {
 					s.options.OnError(data.Err)
@@ -41,25 +41,22 @@ func (s *SSEConverter) Convert(ctx context.Context, w http.ResponseWriter, dataC
 				return data.Err
 			}
 
+			chunk := data.Payload
+			if s.options.Processor != nil {
+				bytes, err := s.options.Processor(chunk)
+				if err != nil {
+					return err
+				}
+				chunk = bytes
+			}
+
 			// 写入SSE格式
-			if err := s.write(w, data.Payload); err != nil {
+			_, err := w.Write(chunk)
+			if err != nil {
+				log.Printf("Error writing chunk to response: %v", err)
 				return err
 			}
 			flusher.Flush()
 		}
 	}
-}
-
-// writeSSE 写入SSE格式数据
-func (s *SSEConverter) write(w io.Writer, data []byte) error {
-	if s.options.Processor != nil {
-		bytes, err := s.options.Processor(data)
-		if err != nil {
-			return err
-		}
-		data = bytes
-	}
-
-	_, err := fmt.Fprintf(w, "data: %s\n\n", data)
-	return err
 }

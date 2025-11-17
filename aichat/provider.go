@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 )
 
 type ProviderOptions struct {
@@ -54,7 +53,6 @@ func (p BaseProvider) StreamChat(ctx context.Context, request *ChatRequest) (<-c
 		}
 
 		scanner := bufio.NewScanner(resp.Body)
-
 		for {
 			select {
 			case <-ctx.Done():
@@ -70,27 +68,23 @@ func (p BaseProvider) StreamChat(ctx context.Context, request *ChatRequest) (<-c
 				}
 
 				line := scanner.Text()
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-
-				if strings.HasPrefix(line, "data: ") {
-					data := strings.TrimPrefix(line, "data: ")
+				if len(line) > 6 && line[:6] == "data: " {
+					data := line[6:]
 					if data == "[DONE]" {
 						return
 					}
 
-					// todo 可扩展自定义解析
-					var response ChatResponse
-					if err = json.Unmarshal([]byte(data), &response); err != nil {
+					// 解析JSON
+					var chatResp ChatResponse
+					if err = json.Unmarshal([]byte(data), &chatResp); err != nil {
 						continue
 					}
 
-					if len(response.Choices) > 0 && response.Choices[0].Delta.Content != "" {
+					// 提取内容
+					if len(chatResp.Choices) > 0 && chatResp.Choices[0].Delta.Content != "" {
 						chunks <- StreamChunk{
-							Content:      response.Choices[0].Delta.Content,
-							FinishReason: response.Choices[0].FinishReason,
+							Content:      chatResp.Choices[0].Delta.Content,
+							FinishReason: chatResp.Choices[0].FinishReason,
 						}
 					}
 				}
